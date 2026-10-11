@@ -6,5 +6,7 @@ SpacemiT
    :maxdepth: 1
 
    bananapi-f3
+   k1-mmc
    k1-spl
+   spacemit-pico-itx
 

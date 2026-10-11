@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2021 - 2022, Xilinx, Inc.
- * Copyright (C) 2022, Advanced Micro Devices, Inc.
+ * Copyright (C) 2022 - 2026, Advanced Micro Devices, Inc.
  *
  * Michal Simek <michal.simek@amd.com>
  */
@@ -11,6 +11,7 @@
 #include <malloc.h>
 #include <time.h>
 #include <vsprintf.h>
+#include <linux/errno.h>
 #include <asm/armv8/mmu.h>
 #include <asm/cache.h>
 #include <asm/global_data.h>
@@ -151,7 +152,8 @@ u8 __weak versal_net_get_bootmode(void)
 	return reg & BOOT_MODES_MASK;
 }
 
-static u32 platform_id, platform_version;
+static u32 platform_id __section(".data");
+static u32 platform_version __section(".data");
 
 char *soc_name_decode(void)
 {
@@ -192,13 +194,13 @@ bool soc_detection(void)
 {
 	u32 version, ps_version;
 
-	version = readl(PMC_TAP_VERSION);
+	version = zynqmp_pm_get_pmc_tap_version();
 	platform_id = FIELD_GET(PLATFORM_MASK, version);
 	ps_version = FIELD_GET(PS_VERSION_MASK, version);
 
 	debug("idcode %x, version %x, usercode %x\n",
-	      readl(PMC_TAP_IDCODE), version,
-	      readl(PMC_TAP_USERCODE));
+	      zynqmp_pm_get_pmc_tap_idcode(), version,
+	      zynqmp_pm_get_pmc_tap_usercode());
 
 	debug("pmc_ver %lx, ps version %x, rtl version %lx\n",
 	      FIELD_GET(PMC_VERSION_MASK, version),
@@ -235,6 +237,33 @@ bool soc_detection(void)
 	      platform_version / 10, platform_version % 10);
 
 	return true;
+}
+
+__weak int xilinx_pm_get_chipid(u32 *idcode, u32 *version)
+{
+	if (idcode)
+		*idcode = 0;
+
+	*version = readl(PMC_TAP_VERSION);
+	if (!*version)
+		return -EINVAL;
+
+	return 0;
+}
+
+__weak u32 zynqmp_pm_get_pmc_tap_idcode(void)
+{
+	return readl(PMC_TAP_IDCODE);
+}
+
+__weak u32 zynqmp_pm_get_pmc_tap_version(void)
+{
+	return readl(PMC_TAP_VERSION);
+}
+
+__weak u32 zynqmp_pm_get_pmc_tap_usercode(void)
+{
+	return readl(PMC_TAP_USERCODE);
 }
 
 U_BOOT_DRVINFO(soc_xilinx_versal_net) = {

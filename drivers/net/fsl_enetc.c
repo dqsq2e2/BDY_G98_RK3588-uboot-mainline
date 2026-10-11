@@ -21,6 +21,7 @@
 #include <linux/bitfield.h>
 #include <linux/bug.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/build_bug.h>
 #include <linux/bitfield.h>
 #include <power/regulator.h>
@@ -32,6 +33,11 @@
 #include "fsl_enetc_xpcs_phy.c"
 #else
 static inline int xpcs_phy_usxgmii_pma_config(struct udevice *dev)
+{
+	return 0;
+}
+
+static inline int xpcs_phy_sgmii_1g_config(struct udevice *dev)
 {
 	return 0;
 }
@@ -105,10 +111,8 @@ static int enetc_dev_id(struct udevice *dev)
 {
 	if (enetc_is_imx95(dev))
 		return enetc_dev_id_imx(dev);
-	if (enetc_is_ls1028a(dev))
-		return PCI_FUNC(pci_get_devfn(dev));
 
-	return 0;
+	return PCI_FUNC(pci_get_devfn(dev));
 }
 
 static void enetc_inval_rxbd(struct udevice *dev)
@@ -387,6 +391,9 @@ static int enetc_init_sgmii(struct udevice *dev)
 	if (!enetc_has_imdio(dev))
 		return 0;
 
+	if (priv->uclass_id == PHY_INTERFACE_MODE_SGMII && enetc_is_imx95(dev))
+		return xpcs_phy_sgmii_1g_config(dev);
+
 	if (priv->uclass_id == PHY_INTERFACE_MODE_2500BASEX)
 		is2500 = true;
 
@@ -482,6 +489,14 @@ static void enetc_setup_mac_iface(struct udevice *dev,
 			if_mode &= ~ENETC_PM_IF_IFMODE_MASK_LS;
 		enetc_write_mac_port(dev, ENETC_PM_IF_MODE, if_mode);
 		break;
+	case PHY_INTERFACE_MODE_SGMII:
+		if_mode = enetc_read_mac_port(dev, ENETC_PM_IF_MODE);
+		if (enetc_is_imx95(dev)) {
+			if_mode &= ~(ENETC_PM_IF_IFMODE_MASK_IMX | ENETC_PM_IF_MODE_AN_ENA);
+			if_mode |= IFMODE_SGMII;
+		}
+		enetc_write_mac_port(dev, ENETC_PM_IF_MODE, if_mode);
+		break;
 	};
 }
 
@@ -564,6 +579,9 @@ static int enetc_config_phy(struct udevice *dev)
 
 	if (enetc_is_imx95(dev))
 		supported |= PHY_10G_FEATURES;
+
+	if (priv->uclass_id == PHY_INTERFACE_MODE_SGMII && enetc_is_imx95(dev))
+		supported &= ~(PHY_100BT_FEATURES | PHY_10BT_FEATURES);
 
 	priv->phy->supported &= supported;
 	priv->phy->advertising &= supported;

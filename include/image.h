@@ -412,6 +412,8 @@ struct bootm_headers {
 
 	int		verify;		/* env_get("verify")[0] != 'n' */
 
+	struct udevice *imagemap;	/* on-demand storage loader, or NULL */
+
 #define BOOTM_STATE_START	0x00000001
 #define BOOTM_STATE_FINDOS	0x00000002
 #define BOOTM_STATE_FINDOTHER	0x00000004
@@ -1152,10 +1154,13 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 #define FIT_SIG_NODENAME	"signature"
 #define FIT_KEY_REQUIRED	"required"
 #define FIT_KEY_HINT		"key-name-hint"
+#define FIT_SIGN_IMAGES_PROP	"sign-images"
 
 /* cipher node */
 #define FIT_CIPHER_NODENAME	"cipher"
-#define FIT_ALGO_PROP		"algo"
+#define FIT_IV_HINT		"iv-name-hint"
+#define FIT_IV_PROP		"iv"
+#define FIT_DATA_SIZE_UNCIPHERED_PROP	"data-size-unciphered"
 
 /* dm-verity node */
 #define FIT_VERITY_NODENAME	"dm-verity"
@@ -1179,6 +1184,7 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 #define FIT_DATA_POSITION_PROP	"data-position"
 #define FIT_DATA_OFFSET_PROP	"data-offset"
 #define FIT_DATA_SIZE_PROP	"data-size"
+#define FIT_IMAGE_DATA_PROP	"image-data"
 #define FIT_TIMESTAMP_PROP	"timestamp"
 #define FIT_DESC_PROP		"description"
 #define FIT_ARCH_PROP		"arch"
@@ -1205,6 +1211,14 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 #define FIT_COMPAT_PROP		"compatible"
 
 #define FIT_MAX_HASH_LEN	HASH_MAX_DIGEST_SIZE
+
+/**
+ * fit_config_prop_is_image_ref() - Check whether a config property names images
+ *
+ * @prop_name: Configuration property name
+ * Return: true if the property contains image references
+ */
+bool fit_config_prop_is_image_ref(const char *prop_name);
 
 /* cmdline argument format parsing */
 int fit_parse_conf(const char *spec, ulong addr_curr,
@@ -1263,10 +1277,10 @@ int fit_image_get_load(const void *fit, int noffset, ulong *load);
 int fit_image_get_entry(const void *fit, int noffset, ulong *entry);
 int fit_image_get_emb_data(const void *fit, int noffset, const void **data,
 			   size_t *size);
-int fit_image_get_data_offset(const void *fit, int noffset, int *data_offset);
+int fit_image_get_data_offset(const void *fit, int noffset, u32 *data_offset);
 int fit_image_get_data_position(const void *fit, int noffset,
-				int *data_position);
-int fit_image_get_data_size(const void *fit, int noffset, int *data_size);
+				u32 *data_position);
+int fit_image_get_data_size(const void *fit, int noffset, u32 *data_size);
 int fit_image_get_data_size_unciphered(const void *fit, int noffset,
 				       size_t *data_size);
 int fit_image_get_data(const void *fit, int noffset, const void **data,
